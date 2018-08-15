@@ -22,44 +22,41 @@ object Main extends App {
   case object Missing extends JsonStructure
   case object EmptyArray extends JsonStructure
 
-  def inferStructure(array: JsArray): JsonStructure = {
-    def infer(value: JsValue): JsonStructure = value match {
-      case _: JsString    => JsStringStructure
-      case JsNull         => JsNullStructure
-      case _: JsNumber    => JsNumberStructure
-      case _: JsBoolean   => JsBooleanStructure
+  def infer(value: JsValue): JsonStructure = value match {
+    case _: JsString  => JsStringStructure
+    case JsNull       => JsNullStructure
+    case _: JsNumber  => JsNumberStructure
+    case _: JsBoolean => JsBooleanStructure
 
-      case array: JsArray => inferStructure(array)
-      case obj: JsObject =>
-        ObjectOf(obj.fields.mapValues(infer))
-    }
-    def unify(one: JsonStructure, two: JsonStructure): JsonStructure =
-      if (one == two) one
-      else
-        (one, two) match {
-          case (EmptyArray, other: ArrayOf) => other
-          case (other: ArrayOf, EmptyArray) => other
-          case (ArrayOf(s1), ArrayOf(s2))   => ArrayOf(unify(s1, s2))
-          case (ObjectOf(fields1), ObjectOf(fields2)) =>
-            val allFields = fields1.keySet ++ fields2.keySet
-
-            val newStruct =
-              allFields.map { f =>
-                f -> unify(fields1.getOrElse(f, Missing), fields2.getOrElse(f, Missing))
-              }.toMap
-            ObjectOf(newStruct)
-
-          case (OneOf(many), OneOf(others)) => OneOf(many ++ others)
-          case (OneOf(many), x)             => OneOf(many + x)
-          case (x, OneOf(many))             => OneOf(many + x)
-          case (a, b)                       => OneOf(Set(a, b))
-        }
-
-    array.elements.map(infer).reduceLeftOption(unify).getOrElse(EmptyArray)
+    case array: JsArray =>
+      ArrayOf(array.elements.map(infer).reduceLeftOption(unify).getOrElse(EmptyArray))
+    case obj: JsObject =>
+      ObjectOf(obj.fields.mapValues(infer))
   }
+  def unify(one: JsonStructure, two: JsonStructure): JsonStructure =
+    if (one == two) one
+    else
+      (one, two) match {
+        case (EmptyArray, other: ArrayOf) => other
+        case (other: ArrayOf, EmptyArray) => other
+        case (ArrayOf(s1), ArrayOf(s2))   => ArrayOf(unify(s1, s2))
+        case (ObjectOf(fields1), ObjectOf(fields2)) =>
+          val allFields = fields1.keySet ++ fields2.keySet
+
+          val newStruct =
+            allFields.map { f =>
+              f -> unify(fields1.getOrElse(f, Missing), fields2.getOrElse(f, Missing))
+            }.toMap
+          ObjectOf(newStruct)
+
+        case (OneOf(many), OneOf(others)) => OneOf(many ++ others)
+        case (OneOf(many), x)             => OneOf(many + x)
+        case (x, OneOf(many))             => OneOf(many + x)
+        case (a, b)                       => OneOf(Set(a, b))
+      }
 
   def toJson(s: JsonStructure): JsValue = s match {
-    case ArrayOf(els) => JsArray(toJson(s))
+    case ArrayOf(els) => JsArray(toJson(els))
     case ObjectOf(fields) =>
       val entries = fields.mapValues(toJson)
       JsObject(entries)
@@ -71,5 +68,5 @@ object Main extends App {
     case x => JsString(x.toString)
   }
 
-  println(toJson(inferStructure(asArray)).prettyPrint)
+  println(toJson(infer(asArray)).prettyPrint)
 }
