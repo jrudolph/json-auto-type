@@ -2,6 +2,7 @@ val scalaV = "2.12.6"
 val specs2V = "4.3.2"
 
 libraryDependencies ++= Seq(
+  "io.spray" %% "spray-json" % "1.3.4",
   "org.specs2" %% "specs2-core" % specs2V % "test"
 )
 
