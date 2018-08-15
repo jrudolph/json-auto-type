@@ -54,12 +54,27 @@ object Main extends App {
 
       tryOne(existing.toVector, Nil)
     }
+    def ordering(structure: JsonStructure): Int = structure match {
+      case _: OneOf             => 0
+      case _: ArrayOf           => 1
+      case _: ObjectOf          => 2
+      case _: JsStringStructure => 3
+      case JsNullStructure      => 4
+      case JsNumberStructure    => 5
+      case JsBooleanStructure   => 6
+      case Missing              => 7
+      case EmptyArray           => 8
+    }
 
     if (one == two) one
-    else
-      (one, two) match {
+    else {
+      // as unification is commutative, ensure we only have to look for one permutation
+      val (fst, snd) =
+        if (ordering(one) < ordering(two)) (one, two)
+        else (two, one)
+
+      (fst, snd) match {
         case (a: JsStringStructure, _: JsStringStructure) => JsStringStructure("<several>")
-        case (EmptyArray, other: ArrayOf)                 => other
         case (other: ArrayOf, EmptyArray)                 => other
         case (ArrayOf(s1), ArrayOf(s2))                   => ArrayOf(unify(s1, s2))
         case (ObjectOf(fields1), ObjectOf(fields2)) =>
@@ -73,9 +88,9 @@ object Main extends App {
 
         case (OneOf(many), OneOf(others)) => OneOf(others.foldLeft(many)(addToOneOf))
         case (OneOf(many), x)             => OneOf(addToOneOf(many, x))
-        case (x, OneOf(many))             => OneOf(addToOneOf(many, x))
         case (a, b)                       => OneOf(Set(a, b))
       }
+    }
   }
 
   def toJson(s: JsonStructure): JsValue = s match {
