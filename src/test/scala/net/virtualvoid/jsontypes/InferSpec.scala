@@ -60,7 +60,7 @@ class InferSpec extends FreeSpec with MustMatchers {
   def inferTo(expected: JsType): Matcher[Seq[String]] =
     Matcher { jsonStrings: Seq[String] =>
       val json = jsonStrings.map(_.parseJson)
-      val tpe = Inferer.infer(json)
+      val tpe = Inferer.inferAndUnify(json)
 
       MatchResult(
         tpe == expected,

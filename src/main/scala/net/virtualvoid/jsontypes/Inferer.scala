@@ -6,7 +6,7 @@ import JsType._
 import scala.annotation.tailrec
 
 object Inferer {
-  def infer(values: Seq[JsValue]): JsType =
+  def inferAndUnify(values: Seq[JsValue]): JsType =
     values.map(infer).reduceLeftOption(unify).getOrElse(Missing)
 
   def infer(value: JsValue): JsType = value match {
@@ -15,7 +15,7 @@ object Inferer {
     case _: JsNumber    => NumberType
     case _: JsBoolean   => BooleanType
 
-    case array: JsArray => ArrayOf(infer(array.elements))
+    case array: JsArray => ArrayOf(inferAndUnify(array.elements))
     case obj: JsObject  => ObjectOf(obj.fields.mapValues(infer))
   }
   def unify(one: JsType, two: JsType): JsType = {
