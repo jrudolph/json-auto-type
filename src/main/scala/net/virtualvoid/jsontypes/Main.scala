@@ -12,41 +12,22 @@ object Main extends App {
       .map(_.parseJson)
   val asArray = JsArray(jsonEntries.toVector)*/
   val json = data.mkString.parseJson
+  import JsType._
 
-  type Alternatives = Set[JsonStructure]
-
-  sealed trait JsonStructure
-  final case class ArrayOf(structure: JsonStructure) extends JsonStructure
-  final case class OneOf(alternatives: Alternatives) extends JsonStructure
-  final case class ObjectOf(fields: Map[String, JsonStructure]) extends JsonStructure
-
-  case class ValueOrNull(valueStructure: JsonStructure) extends JsonStructure
-
-  sealed trait PrimitiveStructure extends JsonStructure
-
-  case class JsStringStructure(value: String) extends PrimitiveStructure
-  case object JsNumberStructure extends PrimitiveStructure
-  case object JsBooleanStructure extends PrimitiveStructure
-
-  case object JsNullStructure extends JsonStructure
-
-  case object Missing extends JsonStructure
-  case object EmptyArray extends JsonStructure
-
-  def infer(value: JsValue): JsonStructure = value match {
-    case JsString(value) => JsStringStructure(value)
-    case JsNull          => JsNullStructure
-    case _: JsNumber     => JsNumberStructure
-    case _: JsBoolean    => JsBooleanStructure
+  def infer(value: JsValue): JsType = value match {
+    case JsString(value) => StringType(value)
+    case JsNull          => NullType
+    case _: JsNumber     => NumberType
+    case _: JsBoolean    => BooleanType
 
     case array: JsArray =>
       array.elements.map(infer).reduceLeftOption(unify).map(ArrayOf).getOrElse(EmptyArray)
     case obj: JsObject =>
       ObjectOf(obj.fields.mapValues(infer))
   }
-  def unify(one: JsonStructure, two: JsonStructure): JsonStructure = {
-    def addToOneOf(existing: Alternatives, newEntry: JsonStructure): Alternatives = {
-      def tryOne(remaining: Seq[JsonStructure], tried: Seq[JsonStructure]): Alternatives =
+  def unify(one: JsType, two: JsType): JsType = {
+    def addToOneOf(existing: Alternatives, newEntry: JsType): Alternatives = {
+      def tryOne(remaining: Seq[JsType], tried: Seq[JsType]): Alternatives =
         remaining match {
           case Nil =>
             existing + newEntry // cannot be unified into any of the existing alternatives
@@ -63,15 +44,15 @@ object Main extends App {
 
       tryOne(existing.toVector, Nil)
     }
-    def ordering(structure: JsonStructure): Int = structure match {
-      case JsNullStructure      => 0
+    def ordering(structure: JsType): Int = structure match {
+      case JsType.NullType      => 0
       case _: ValueOrNull       => 5
       case _: OneOf             => 10
       case _: ArrayOf           => 20
       case _: ObjectOf          => 30
-      case _: JsStringStructure => 40
-      case JsNumberStructure    => 50
-      case JsBooleanStructure   => 60
+      case _: JsType.StringType => 40
+      case JsType.NumberType    => 50
+      case JsType.BooleanType   => 60
       case Missing              => 70
       case EmptyArray           => 80
     }
@@ -84,11 +65,11 @@ object Main extends App {
         else (two, one)
 
       (fst, snd) match {
-        case (JsNullStructure, JsNullStructure) => JsNullStructure
-        case (JsNullStructure, other: ValueOrNull) => other
-        case (von @ ValueOrNull(v), v2) if unify(v, v2).isInstanceOf[PrimitiveStructure] => von
-        case (JsNullStructure, other) => ValueOrNull(other)
-        case (_: JsStringStructure, _: JsStringStructure) => JsStringStructure("<several>")
+        case (JsType.NullType, JsType.NullType) => JsType.NullType
+        case (JsType.NullType, other: ValueOrNull) => other
+        case (von @ ValueOrNull(v), v2) if unify(v, v2).isInstanceOf[PrimitiveType] => von
+        case (JsType.NullType, other) => ValueOrNull(other)
+        case (_: JsType.StringType, _: JsType.StringType) => StringType("<several>")
         case (other: ArrayOf, EmptyArray) => other
         case (ArrayOf(s1), ArrayOf(s2)) => ArrayOf(unify(s1, s2))
         case (ObjectOf(fields1), ObjectOf(fields2)) =>
@@ -107,7 +88,7 @@ object Main extends App {
     }
   }
 
-  def toJson(s: JsonStructure): JsValue = s match {
+  def toJson(s: JsType): JsValue = s match {
     case ArrayOf(els) => JsArray(toJson(els))
     case ObjectOf(fields) =>
       val entries = fields.mapValues(toJson)
@@ -133,12 +114,12 @@ object Main extends App {
   def camelCased(name: String): String =
     if (Character.isLowerCase(name(0))) name(0).toUpper +: name.tail mkString
     else name
-  def toCaseClasses(s: JsonStructure, namePrefix: String): Metadata =
+  def toCaseClasses(s: JsType, namePrefix: String): Metadata =
     s match {
-      case JsBooleanStructure   => Metadata("Boolean")
-      case JsNumberStructure    => Metadata("BigDecimal")
-      case JsNullStructure      => Metadata("Option[String]")
-      case _: JsStringStructure => Metadata("String")
+      case JsType.BooleanType   => Metadata("Boolean")
+      case JsType.NumberType    => Metadata("BigDecimal")
+      case JsType.NullType      => Metadata("Option[String]")
+      case _: JsType.StringType => Metadata("String")
       case ArrayOf(struct) =>
         val meta = toCaseClasses(struct, namePrefix + "ArrayElement")
         Metadata(s"Seq[${meta.typeName}]", innerDefs = meta :: Nil)
