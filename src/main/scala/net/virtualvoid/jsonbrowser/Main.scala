@@ -16,10 +16,15 @@ object Main extends App {
   final case class OneOf(alternatives: Alternatives) extends JsonStructure
   final case class ObjectOf(fields: Map[String, JsonStructure]) extends JsonStructure
 
-  case class JsStringStructure(value: String) extends JsonStructure
+  case class ValueOrNull(valueStructure: JsonStructure) extends JsonStructure
+
+  sealed trait PrimitiveStructure extends JsonStructure
+
+  case class JsStringStructure(value: String) extends PrimitiveStructure
+  case object JsNumberStructure extends PrimitiveStructure
+  case object JsBooleanStructure extends PrimitiveStructure
+
   case object JsNullStructure extends JsonStructure
-  case object JsNumberStructure extends JsonStructure
-  case object JsBooleanStructure extends JsonStructure
 
   case object Missing extends JsonStructure
   case object EmptyArray extends JsonStructure
@@ -31,7 +36,7 @@ object Main extends App {
     case _: JsBoolean    => JsBooleanStructure
 
     case array: JsArray =>
-      ArrayOf(array.elements.map(infer).reduceLeftOption(unify).getOrElse(EmptyArray))
+      array.elements.map(infer).reduceLeftOption(unify).map(ArrayOf).getOrElse(EmptyArray)
     case obj: JsObject =>
       ObjectOf(obj.fields.mapValues(infer))
   }
@@ -55,15 +60,16 @@ object Main extends App {
       tryOne(existing.toVector, Nil)
     }
     def ordering(structure: JsonStructure): Int = structure match {
-      case _: OneOf             => 0
-      case _: ArrayOf           => 1
-      case _: ObjectOf          => 2
-      case _: JsStringStructure => 3
-      case JsNullStructure      => 4
-      case JsNumberStructure    => 5
-      case JsBooleanStructure   => 6
-      case Missing              => 7
-      case EmptyArray           => 8
+      case JsNullStructure      => 0
+      case _: ValueOrNull       => 5
+      case _: OneOf             => 10
+      case _: ArrayOf           => 20
+      case _: ObjectOf          => 30
+      case _: JsStringStructure => 40
+      case JsNumberStructure    => 50
+      case JsBooleanStructure   => 60
+      case Missing              => 70
+      case EmptyArray           => 80
     }
 
     if (one == two) one
@@ -74,9 +80,13 @@ object Main extends App {
         else (two, one)
 
       (fst, snd) match {
-        case (a: JsStringStructure, _: JsStringStructure) => JsStringStructure("<several>")
-        case (other: ArrayOf, EmptyArray)                 => other
-        case (ArrayOf(s1), ArrayOf(s2))                   => ArrayOf(unify(s1, s2))
+        case (JsNullStructure, JsNullStructure) => JsNullStructure
+        case (JsNullStructure, other: ValueOrNull) => other
+        case (von @ ValueOrNull(v), v2) if unify(v, v2).isInstanceOf[PrimitiveStructure] => von
+        case (JsNullStructure, other) => ValueOrNull(other)
+        case (_: JsStringStructure, _: JsStringStructure) => JsStringStructure("<several>")
+        case (other: ArrayOf, EmptyArray) => other
+        case (ArrayOf(s1), ArrayOf(s2)) => ArrayOf(unify(s1, s2))
         case (ObjectOf(fields1), ObjectOf(fields2)) =>
           val allFields = fields1.keySet ++ fields2.keySet
 
@@ -103,6 +113,8 @@ object Main extends App {
         JsObject("optional" -> toJson((els - Missing).head))
       else
         JsObject("oneOf" -> JsArray(els.map(toJson).toVector))
+    case ValueOrNull(valueStructure) =>
+      JsObject("optional" -> toJson(valueStructure))
     case x => JsString(x.toString)
   }
 
