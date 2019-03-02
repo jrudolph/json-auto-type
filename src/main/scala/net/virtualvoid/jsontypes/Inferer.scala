@@ -40,7 +40,7 @@ object Inferer {
 
       tryOne(existing.toVector, Nil)
     }
-    def ordering(structure: JsType): Int = structure match {
+    implicit val typeOrdering = Ordering.by[JsType, Int] {
       case NullType       => 0
       case _: ValueOrNull => 5
       case _: OneOf       => 10
@@ -52,12 +52,13 @@ object Inferer {
       case Missing        => 70
       case EmptyArray     => 80
     }
+    import Ordering.Implicits._
 
     if (one == two) one
     else {
       // as unification is commutative, ensure we only have to look for one permutation
       val (fst, snd) =
-        if (ordering(one) < ordering(two)) (one, two)
+        if (one < two) (one, two)
         else (two, one)
 
       (fst, snd) match {
