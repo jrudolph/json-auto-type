@@ -3,6 +3,8 @@ package net.virtualvoid.jsontypes
 import spray.json._
 import JsType._
 
+import scala.annotation.tailrec
+
 object Inferer {
   def infer(values: Seq[JsValue]): JsType = {
     require(values.nonEmpty, "Must give non-empty Seq to infer")
@@ -23,7 +25,7 @@ object Inferer {
   }
   def unify(one: JsType, two: JsType): JsType = {
     def addToOneOf(existing: Alternatives, newEntry: JsType): Alternatives = {
-      def tryOne(remaining: Seq[JsType], tried: Seq[JsType]): Alternatives =
+      @tailrec def tryOne(remaining: Seq[JsType], tried: Seq[JsType]): Alternatives =
         remaining match {
           case Nil =>
             existing + newEntry // cannot be unified into any of the existing alternatives
@@ -62,12 +64,16 @@ object Inferer {
         else (two, one)
 
       (fst, snd) match {
-        case (NullType, NullType) => NullType
-        case (NullType, other: ValueOrNull) => other
-        case (von @ ValueOrNull(v), v2) if unify(v, v2).isInstanceOf[PrimitiveType] => von
-        case (NullType, other) => ValueOrNull(other)
-        case (other: ArrayOf, EmptyArray) => other
-        case (ArrayOf(s1), ArrayOf(s2)) => ArrayOf(unify(s1, s2))
+        case (NullType, NullType)                  => NullType
+        case (NullType, other: ValueOrNull)        => other
+        case (NullType, other)                     => ValueOrNull(other)
+
+        case (von @ ValueOrNull(v), v2) if v == v2 => von
+
+        case (other: ArrayOf, EmptyArray)          => other
+
+        case (ArrayOf(s1), ArrayOf(s2))            => ArrayOf(unify(s1, s2))
+
         case (ObjectOf(fields1), ObjectOf(fields2)) =>
           val allFields = fields1.keySet ++ fields2.keySet
 
@@ -79,6 +85,9 @@ object Inferer {
 
         case (OneOf(many), OneOf(others)) => OneOf(others.foldLeft(many)(addToOneOf))
         case (OneOf(many), x)             => OneOf(addToOneOf(many, x))
+
+        // case that both are the same was handled above, so remaining case is two distinct
+        // types that cannot be further unified
         case (a, b)                       => OneOf(Set(a, b))
       }
     }

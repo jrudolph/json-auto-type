@@ -6,21 +6,68 @@ import org.scalatest.matchers.MatchResult
 import org.scalatest.matchers.Matcher
 import spray.json._
 
+import JsType._
+
 class InferSpec extends FreeSpec with MustMatchers {
   "Inferer should infer" - {
     "primitive types" - {
-      "null" in { "null" must haveType(JsType.NullType) }
-      "string" in { "\"abc\"" must haveType(JsType.StringType) }
-      "number" in { "12345" must haveType(JsType.NumberType) }
-      "boolean" in { "true" must haveType(JsType.BooleanType) }
+      "null" in { "null" must haveType(NullType) }
+      "string" in { "\"abc\"" must haveType(StringType) }
+      "number" in { "12345" must haveType(NumberType) }
+      "boolean" in { "true" must haveType(BooleanType) }
     }
     "other simple types" - {
-      "empty array" in { "[]" must haveType(JsType.EmptyArray) }
+      "empty array" in { "[]" must haveType(EmptyArray) }
+
+      "ValueOrNull" - {
+        "simple case" in {
+          Seq("null", "1234") must inferTo(ValueOrNull(NumberType))
+        }
+        "multiple nulls" in {
+          Seq("null", "1234", "null") must inferTo(ValueOrNull(NumberType))
+        }
+        "multiple values" in {
+          Seq("42", "null", "1234") must inferTo(ValueOrNull(NumberType))
+        }
+      }
     }
     "from array elements" - {
-      "string array" in { "[\"a\", \"b\"]" must haveType(JsType.ArrayOf(JsType.StringType)) }
+      "string array" in { "[\"a\", \"b\"]" must haveType(ArrayOf(StringType)) }
+
+      "unify types of two arrays" - {
+        "when both arrays have elements of the same type" in {
+          Seq(
+            "[true, false]",
+            "[false, true]"
+          ) must inferTo(ArrayOf(BooleanType))
+        }
+        "when both arrays have elements, but one only null" in {
+          Seq(
+            "[1234]",
+            "[null]"
+          ) must inferTo(ArrayOf(ValueOrNull(NumberType)))
+        }
+        "when one array is empty" in {
+          Seq(
+            "[1234]",
+            "[]"
+          ) must inferTo(ArrayOf(NumberType))
+        }
+      }
     }
   }
+
+  def inferTo(expected: JsType): Matcher[Seq[String]] =
+    Matcher { jsonStrings: Seq[String] =>
+      val json = jsonStrings.map(_.parseJson)
+      val tpe = Inferer.infer(json)
+
+      MatchResult(
+        tpe == expected,
+        s"${jsonStrings.mkString("'", ", ", "'")} should have type '$expected' but had '$tpe'",
+        s"${jsonStrings.mkString("'", ", ", "'")} had expected type '$expected'"
+      )
+    }
 
   def haveType(expected: JsType): Matcher[String] =
     Matcher { jsonString: String =>
