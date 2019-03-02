@@ -24,7 +24,6 @@ object JsType {
   case class ValueOrNull(valueStructure: JsType) extends JsType
 
   case object Missing extends JsType
-  case object EmptyArray extends JsType
 
   def toJson(s: JsType): JsValue = s match {
     case ArrayOf(els) => JsArray(toJson(els))

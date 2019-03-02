@@ -58,7 +58,7 @@ private[jsontypes] object SprayJsonCodeGenImpl {
         val meta = toCaseClasses(valueStructure, namePrefix + "OptionElement")
         val name = camelCased(namePrefix)
         Metadata(s"Option[${meta.typeName}]", innerDefs = meta :: Nil)
-      case EmptyArray => Metadata("Seq[String]") // if we could we would just omit it
+      case Missing => Metadata("Seq[String]") // if we could we would just omit it
     }
 
   def printMetadata(m: Metadata): String = {

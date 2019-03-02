@@ -6,22 +6,17 @@ import JsType._
 import scala.annotation.tailrec
 
 object Inferer {
-  def infer(values: Seq[JsValue]): JsType = {
-    require(values.nonEmpty, "Must give non-empty Seq to infer")
-    values.map(infer).reduceLeftOption(unify).get
-  }
+  def infer(values: Seq[JsValue]): JsType =
+    values.map(infer).reduceLeftOption(unify).getOrElse(Missing)
+
   def infer(value: JsValue): JsType = value match {
-    case _: JsString  => StringType
-    case JsNull       => NullType
-    case _: JsNumber  => NumberType
-    case _: JsBoolean => BooleanType
+    case _: JsString    => StringType
+    case JsNull         => NullType
+    case _: JsNumber    => NumberType
+    case _: JsBoolean   => BooleanType
 
-    case array: JsArray =>
-      if (array.elements.isEmpty) EmptyArray
-      else ArrayOf(infer(array.elements))
-
-    case obj: JsObject =>
-      ObjectOf(obj.fields.mapValues(infer))
+    case array: JsArray => ArrayOf(infer(array.elements))
+    case obj: JsObject  => ObjectOf(obj.fields.mapValues(infer))
   }
   def unify(one: JsType, two: JsType): JsType = {
     def addToOneOf(existing: Alternatives, newEntry: JsType): Alternatives = {
@@ -42,17 +37,20 @@ object Inferer {
 
       tryOne(existing.toVector, Nil)
     }
+
+    // arbitrary order to be able to compare two elements, so that we only need to consider one of the two possible
+    // permutations (unification is commutative)
     implicit val typeOrdering = Ordering.by[JsType, Int] {
-      case NullType       => 0
-      case _: ValueOrNull => 5
-      case _: OneOf       => 10
-      case _: ArrayOf     => 20
-      case _: ObjectOf    => 30
-      case StringType     => 40
-      case NumberType     => 50
-      case BooleanType    => 60
-      case Missing        => 70
-      case EmptyArray     => 80
+      case NullType         => 0
+      case _: ValueOrNull   => 5
+      case _: OneOf         => 10
+      case ArrayOf(Missing) => 19
+      case _: ArrayOf       => 20
+      case _: ObjectOf      => 30
+      case StringType       => 40
+      case NumberType       => 50
+      case BooleanType      => 60
+      case Missing          => 70
     }
     import Ordering.Implicits._
 
@@ -70,8 +68,7 @@ object Inferer {
 
         case (von @ ValueOrNull(v), v2) if v == v2 => von
 
-        case (other: ArrayOf, EmptyArray)          => other
-
+        case (ArrayOf(Missing), ArrayOf(other))    => ArrayOf(other)
         case (ArrayOf(s1), ArrayOf(s2))            => ArrayOf(unify(s1, s2))
 
         case (ObjectOf(fields1), ObjectOf(fields2)) =>

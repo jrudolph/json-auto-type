@@ -17,7 +17,7 @@ class InferSpec extends FreeSpec with MustMatchers {
       "boolean" in { "true" must haveType(BooleanType) }
     }
     "other simple types" - {
-      "empty array" in { "[]" must haveType(EmptyArray) }
+      "empty array" in { "[]" must haveType(ArrayOf(Missing)) }
 
       "ValueOrNull" - {
         "simple case" in {
