@@ -20,10 +20,10 @@ private[jsontypes] object SprayJsonCodeGenImpl {
     else name
   def toCaseClasses(s: JsType, namePrefix: String): Metadata =
     s match {
-      case JsType.BooleanType   => Metadata("Boolean")
-      case JsType.NumberType    => Metadata("BigDecimal")
-      case JsType.NullType      => Metadata("Option[String]")
-      case _: JsType.StringType => Metadata("String")
+      case BooleanType => Metadata("Boolean")
+      case NumberType  => Metadata("BigDecimal")
+      case NullType    => Metadata("Option[String]")
+      case StringType  => Metadata("String")
       case ArrayOf(struct) =>
         val meta = toCaseClasses(struct, namePrefix + "ArrayElement")
         Metadata(s"Seq[${meta.typeName}]", innerDefs = meta :: Nil)

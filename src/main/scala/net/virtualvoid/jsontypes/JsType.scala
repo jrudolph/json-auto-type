@@ -15,9 +15,10 @@ object JsType {
 
   sealed trait PrimitiveType extends JsType
 
-  case class StringType(value: String) extends PrimitiveType
+  case object StringType extends PrimitiveType
   case object NumberType extends PrimitiveType
   case object BooleanType extends PrimitiveType
+
   case object NullType extends JsType
 
   case class ValueOrNull(valueStructure: JsType) extends JsType
