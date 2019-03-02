@@ -14,21 +14,6 @@ object Main extends App {
   val json = data.mkString.parseJson
   import JsType._
 
-  def toJson(s: JsType): JsValue = s match {
-    case ArrayOf(els) => JsArray(toJson(els))
-    case ObjectOf(fields) =>
-      val entries = fields.mapValues(toJson)
-      JsObject(entries)
-    case OneOf(els) =>
-      if (els.size == 2 && els.contains(Missing))
-        JsObject("optional" -> toJson((els - Missing).head))
-      else
-        JsObject("oneOf" -> JsArray(els.map(toJson).toVector))
-    case ValueOrNull(valueStructure) =>
-      JsObject("optional" -> toJson(valueStructure))
-    case x => JsString(x.toString)
-  }
-
   case class Metadata(typeName: String, definition: String = "", innerDefs: Seq[Metadata] = Nil)
   val ReservedKeywords = Set("type")
   val SpecialChars = "[^\\w]+".r

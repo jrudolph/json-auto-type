@@ -1,5 +1,10 @@
 package net.virtualvoid.jsontypes
 
+import spray.json.JsArray
+import spray.json.JsObject
+import spray.json.JsString
+import spray.json.JsValue
+
 sealed trait JsType
 object JsType {
   type Alternatives = Set[JsType]
@@ -19,4 +24,19 @@ object JsType {
 
   case object Missing extends JsType
   case object EmptyArray extends JsType
+
+  def toJson(s: JsType): JsValue = s match {
+    case ArrayOf(els) => JsArray(toJson(els))
+    case ObjectOf(fields) =>
+      val entries = fields.mapValues(toJson)
+      JsObject(entries)
+    case OneOf(els) =>
+      if (els.size == 2 && els.contains(Missing))
+        JsObject("optional" -> toJson((els - Missing).head))
+      else
+        JsObject("oneOf" -> JsArray(els.map(toJson).toVector))
+    case ValueOrNull(valueStructure) =>
+      JsObject("optional" -> toJson(valueStructure))
+    case x => JsString(x.toString)
+  }
 }
