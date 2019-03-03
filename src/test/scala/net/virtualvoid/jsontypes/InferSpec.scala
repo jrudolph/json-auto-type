@@ -55,6 +55,38 @@ class InferSpec extends FreeSpec with MustMatchers {
         }
       }
     }
+    "from objects" - {
+      "simple" in {
+        """{ "name": "Paula", "age": 46}""" must haveType {
+          ObjectOf(Map("name" -> StringType, "age" -> NumberType))
+        }
+      }
+      "unify same structured" in {
+        Seq(
+          """{ "name": "Paula", "age": 46}""",
+          """{ "name": "Gustav", "age": 52}"""
+        ) must inferTo {
+            ObjectOf(Map("name" -> StringType, "age" -> NumberType))
+          }
+      }
+      "unify element-wise" in {
+        Seq(
+          """{ "name": "Paula", "age": 46}""",
+          """{ "name": null, "age": "52"}"""
+        ) must inferTo {
+            ObjectOf(Map("name" -> ValueOrNull(StringType), "age" -> OneOf(NumberType, StringType)))
+          }
+      }
+      "note missing elements" in {
+        Seq(
+          """{ "name": "Paula", "age": 46}""",
+          """{ "name": "Gustav", "age": 52, "house_color": "glitter"}"""
+        ) must inferTo {
+            ObjectOf(Map("name" -> StringType, "age" -> NumberType, "house_color" -> OneOf(Missing, StringType)))
+          }
+      }
+
+    }
   }
 
   def inferTo(expected: JsType): Matcher[Seq[String]] =

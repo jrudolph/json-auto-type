@@ -11,6 +11,10 @@ object JsType {
 
   final case class ArrayOf(structure: JsType) extends JsType
   final case class OneOf(alternatives: Alternatives) extends JsType
+  object OneOf {
+    def apply(fst: JsType, others: JsType*): OneOf =
+      OneOf(fst +: others toSet)
+  }
   final case class ObjectOf(fields: Map[String, JsType]) extends JsType
 
   sealed trait PrimitiveType extends JsType
