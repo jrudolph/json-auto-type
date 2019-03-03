@@ -74,6 +74,17 @@ object Inferer {
         case (ObjectOf(fields1), ObjectOf(fields2)) =>
           val allFields = fields1.keySet ++ fields2.keySet
 
+          // Here, I made a particular choice in the algorithm: every field is unified independently of every other.
+          // If there's an array of objects that is homogeneous, i.e. every element is representing a similar data item (e.g. a user)
+          // but every element might have slight differences (some fields might be optional or heterogeneous), then this
+          // algorithm will lead to good results.
+          //
+          // For heterogeneous arrays, however, it leads to suboptimal results for two elements that are each of a
+          // different kind cannot be unified gracefully. Instead, the result will be a big object type where e.g. each
+          // field is optional or a OneOf. For those cases, better heuristics need to be developed. For example, if two objects
+          // share too few common fields, one could treat them as two different objects types in the first place. Another
+          // heuristic could be to detect discriminator fields with common names like '_class', or '_type` and use those
+          // as an indication or trigger to prevent unification of all the fields.
           val newStruct =
             allFields.map { f =>
               f -> unify(fields1.getOrElse(f, Missing), fields2.getOrElse(f, Missing))
