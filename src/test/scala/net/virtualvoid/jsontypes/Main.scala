@@ -1,11 +1,10 @@
 package net.virtualvoid.jsontypes
 
+import scala.io.Source
 import spray.json._
 
-import scala.io.Source
-
 object Main extends App {
-  val data = Source.fromFile("jenkins-project-with-parameters.json")
+  val data = Source.fromResource("github-repo-events.json")
   /*val jsonEntries =
     data.getLines
       .take(50)
