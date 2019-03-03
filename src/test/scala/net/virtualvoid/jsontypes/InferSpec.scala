@@ -30,6 +30,35 @@ class InferSpec extends FreeSpec with MustMatchers {
           Seq("42", "null", "1234") must inferTo(ValueOrNull(NumberType))
         }
       }
+
+      "OneOf" - {
+        "for two different types" in {
+          Seq(
+            "1234",
+            "true"
+          ) must inferTo(OneOf(NumberType, BooleanType))
+        }
+        "for three different types" in {
+          Seq(
+            "1234",
+            "true",
+            "\"test\""
+          ) must inferTo(OneOf(NumberType, StringType, BooleanType))
+        }
+        "pull out ValueOrNull from OneOf" in {
+          Seq(
+            "1234",
+            "null",
+            "true"
+          ) must inferTo(ValueOrNull(OneOf(NumberType, BooleanType)))
+          Seq(
+            "1234",
+            "true",
+            "null",
+            "\"test\""
+          ) must inferTo(ValueOrNull(OneOf(NumberType, BooleanType, StringType)))
+        }
+      }
     }
     "from array elements" - {
       "string array" in { "[\"a\", \"b\"]" must haveType(ArrayOf(StringType)) }
