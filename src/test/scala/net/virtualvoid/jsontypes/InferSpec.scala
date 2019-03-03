@@ -30,6 +30,35 @@ class InferSpec extends FreeSpec with MustMatchers {
           Seq("42", "null", "1234") must inferTo(ValueOrNull(NumberType))
         }
       }
+
+      "OneOf" - {
+        "for two different types" in {
+          Seq(
+            "1234",
+            "true"
+          ) must inferTo(OneOf(NumberType, BooleanType))
+        }
+        "for three different types" in {
+          Seq(
+            "1234",
+            "true",
+            "\"test\""
+          ) must inferTo(OneOf(NumberType, StringType, BooleanType))
+        }
+        "pull out ValueOrNull from OneOf" in {
+          Seq(
+            "1234",
+            "null",
+            "true"
+          ) must inferTo(ValueOrNull(OneOf(NumberType, BooleanType)))
+          Seq(
+            "1234",
+            "true",
+            "null",
+            "\"test\""
+          ) must inferTo(ValueOrNull(OneOf(NumberType, BooleanType, StringType)))
+        }
+      }
     }
     "from array elements" - {
       "string array" in { "[\"a\", \"b\"]" must haveType(ArrayOf(StringType)) }
@@ -54,6 +83,38 @@ class InferSpec extends FreeSpec with MustMatchers {
           ) must inferTo(ArrayOf(NumberType))
         }
       }
+    }
+    "from objects" - {
+      "simple" in {
+        """{ "name": "Paula", "age": 46}""" must haveType {
+          ObjectOf(Map("name" -> StringType, "age" -> NumberType))
+        }
+      }
+      "unify same structured" in {
+        Seq(
+          """{ "name": "Paula", "age": 46}""",
+          """{ "name": "Gustav", "age": 52}"""
+        ) must inferTo {
+            ObjectOf(Map("name" -> StringType, "age" -> NumberType))
+          }
+      }
+      "unify element-wise" in {
+        Seq(
+          """{ "name": "Paula", "age": 46}""",
+          """{ "name": null, "age": "52"}"""
+        ) must inferTo {
+            ObjectOf(Map("name" -> ValueOrNull(StringType), "age" -> OneOf(NumberType, StringType)))
+          }
+      }
+      "note missing elements" in {
+        Seq(
+          """{ "name": "Paula", "age": 46}""",
+          """{ "name": "Gustav", "age": 52, "house_color": "glitter"}"""
+        ) must inferTo {
+            ObjectOf(Map("name" -> StringType, "age" -> NumberType, "house_color" -> OneOf(Missing, StringType)))
+          }
+      }
+
     }
   }
 

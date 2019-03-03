@@ -68,6 +68,8 @@ object Inferer {
 
         case (von @ ValueOrNull(v), v2) if v == v2 => von
 
+        case (ValueOrNull(v), v2)                  => ValueOrNull(unify(v, v2))
+
         case (ArrayOf(Missing), ArrayOf(other))    => ArrayOf(other)
         case (ArrayOf(s1), ArrayOf(s2))            => ArrayOf(unify(s1, s2))
 
@@ -92,6 +94,7 @@ object Inferer {
           ObjectOf(newStruct)
 
         case (OneOf(many), OneOf(others)) => OneOf(others.foldLeft(many)(addToOneOf))
+
         case (OneOf(many), x)             => OneOf(addToOneOf(many, x))
 
         // case that both are the same was handled above, so remaining case is two distinct
