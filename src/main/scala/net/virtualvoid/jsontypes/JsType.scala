@@ -25,6 +25,7 @@ object JsType {
 
   case object NullType extends JsType
 
+  // TODO: decide if that's really necessary or if it can be handled by OneOf(NullType, others) more uniformly
   case class ValueOrNull(valueStructure: JsType) extends JsType
 
   case object Missing extends JsType
