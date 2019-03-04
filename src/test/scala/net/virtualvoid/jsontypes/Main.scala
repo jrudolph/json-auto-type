@@ -4,7 +4,7 @@ import scala.io.Source
 import spray.json._
 
 object Main extends App {
-  val data = Source.fromResource("github-repo-events.json")
+  val data = Source.fromResource("github-user-events.json")
   /*val jsonEntries =
     data.getLines
       .take(50)
@@ -13,7 +13,7 @@ object Main extends App {
   val json = data.mkString.parseJson
   import JsType._
 
-  val tpe = Inferer.infer(json)
+  val tpe = new Inferer().infer(json)
   println(toJson(tpe).prettyPrint)
-  println(SprayJsonCodeGen.bindingFor(tpe))
+  //println(SprayJsonCodeGen.bindingFor(tpe))
 }

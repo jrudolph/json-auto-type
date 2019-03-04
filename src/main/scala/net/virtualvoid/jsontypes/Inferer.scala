@@ -6,22 +6,54 @@ import JsType._
 import scala.annotation.tailrec
 
 trait InferSettings {
+  /** Should constant value types be inferred */
   def inferConstants: Boolean
-
   def withInferConstants(infer: Boolean): InferSettings
+
+  /**
+   * Unifying objects only makes sense if two objects are really of the same kind.
+   *
+   * The infer process, tries to use heuristics to determine whether the types of two objects are the same.
+   *
+   * This value gives the ratio of fields that need to be existent in both objects for those object types to be
+   * considered the same.
+   *
+   * Values between 0.0d and 1.0d are allowed.
+   *
+   * 0 means that all object types will be unified. 1 means that object types will only be unified if they have the exact same
+   * set of fields.
+   */
+  def minRatioOfCommonFieldNamesToUnifyObject: Double
+  def withMinRatioOfCommonFieldNamesToUnifyObject(newValue: Double): InferSettings
+
+  /**
+   * Prevent unification of objects that have a field of the given name and different values.
+   *
+   * That allows to correctly infer types of heterogeneous arrays where an object has a special field that
+   * gives the type name for that object.
+   */
+  def discriminatorFieldNames: Set[String]
+  def withDiscriminatorFieldNames(newValue: Set[String]): InferSettings
 }
 
 object InferSettings {
   val default: InferSettings =
     InferSettingsImpl(
-      inferConstants = true
+      inferConstants = true,
+      minRatioOfCommonFieldNamesToUnifyObject = 0.5,
+      discriminatorFieldNames = Set("class", "_class", "type", "_type")
     )
 
+  val noConstants: InferSettings = default.withInferConstants(false)
+
   private case class InferSettingsImpl(
-      inferConstants: Boolean
+      inferConstants:                          Boolean,
+      minRatioOfCommonFieldNamesToUnifyObject: Double,
+      discriminatorFieldNames:                 Set[String]
   ) extends InferSettings {
-    override def withInferConstants(infer: Boolean): InferSettings =
-      copy(inferConstants = infer)
+    def withInferConstants(infer: Boolean): InferSettings = copy(inferConstants = infer)
+    def withMinRatioOfCommonFieldNamesToUnifyObject(newValue: Double): InferSettings = copy(minRatioOfCommonFieldNamesToUnifyObject = newValue)
+    def withDiscriminatorFieldNames(newValue: Set[String]): InferSettings = copy(discriminatorFieldNames = newValue)
   }
 }
 
@@ -108,7 +140,7 @@ class Inferer(settings: InferSettings = InferSettings.default) {
         case (ArrayOf(Missing), ArrayOf(other))    => ArrayOf(other)
         case (ArrayOf(s1), ArrayOf(s2))            => ArrayOf(unify(s1, s2))
 
-        case (ObjectOf(fields1), ObjectOf(fields2)) =>
+        case (a @ ObjectOf(fields1), b @ ObjectOf(fields2)) =>
           val allFields = fields1.keySet ++ fields2.keySet
 
           // Here, I made a particular choice in the algorithm: every field is unified independently of every other.
@@ -122,11 +154,14 @@ class Inferer(settings: InferSettings = InferSettings.default) {
           // share too few common fields, one could treat them as two different objects types in the first place. Another
           // heuristic could be to detect discriminator fields with common names like '_class', or '_type` and use those
           // as an indication or trigger to prevent unification of all the fields.
-          val newStruct =
-            allFields.map { f =>
-              f -> unify(fields1.getOrElse(f, Missing), fields2.getOrElse(f, Missing))
-            }.toMap
-          ObjectOf(newStruct)
+
+          if (shouldUnifyObjects(a, b)) {
+            val newStruct =
+              allFields.map { f =>
+                f -> unify(fields1.getOrElse(f, Missing), fields2.getOrElse(f, Missing))
+              }.toMap
+            ObjectOf(newStruct)
+          } else OneOf(a, b)
 
         case (OneOf(many), OneOf(others)) => OneOf(others.foldLeft(many)(addToOneOf))
 
@@ -137,5 +172,20 @@ class Inferer(settings: InferSettings = InferSettings.default) {
         case (a, b)                       => OneOf(Set(a, b))
       }
     }
+  }
+
+  private def shouldUnifyObjects(a: ObjectOf, b: ObjectOf): Boolean = {
+    def hasSimilarFields: Boolean =
+      a.fields.keySet.intersect(b.fields.keySet).size.toDouble / (a.fields.size min b.fields.size) >= settings.minRatioOfCommonFieldNamesToUnifyObject
+
+    def hasDifferentDiscriminatorFieldValue: Boolean =
+      settings.discriminatorFieldNames.exists { fieldName =>
+        (a.fields.get(fieldName), b.fields.get(fieldName)) match {
+          case (Some(Constant(v1, _)), Some(Constant(v2, _))) => v1 != v2
+          case _ => false
+        }
+      }
+
+    hasSimilarFields && !hasDifferentDiscriminatorFieldValue
   }
 }

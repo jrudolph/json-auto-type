@@ -23,6 +23,10 @@ object JsType {
       OneOf(fst +: others toSet)
   }
   final case class ObjectOf(fields: Map[String, JsType]) extends JsType
+  object ObjectOf {
+    def apply(fst: (String, JsType), others: (String, JsType)*): ObjectOf =
+      ObjectOf((fst +: others).toMap)
+  }
 
   sealed trait PrimitiveType extends JsType
 

@@ -87,7 +87,7 @@ class InferSpec extends FreeSpec with MustMatchers {
     "from objects" - {
       "simple" in {
         """{ "name": "Paula", "age": 46}""" must haveType {
-          ObjectOf(Map("name" -> StringType, "age" -> NumberType))
+          ObjectOf("name" -> StringType, "age" -> NumberType)
         }
       }
       "unify same structured" in {
@@ -95,7 +95,7 @@ class InferSpec extends FreeSpec with MustMatchers {
           """{ "name": "Paula", "age": 46}""",
           """{ "name": "Gustav", "age": 52}"""
         ) must inferTo {
-            ObjectOf(Map("name" -> StringType, "age" -> NumberType))
+            ObjectOf("name" -> StringType, "age" -> NumberType)
           }
       }
       "unify element-wise" in {
@@ -103,7 +103,7 @@ class InferSpec extends FreeSpec with MustMatchers {
           """{ "name": "Paula", "age": 46}""",
           """{ "name": null, "age": "52"}"""
         ) must inferTo {
-            ObjectOf(Map("name" -> ValueOrNull(StringType), "age" -> OneOf(NumberType, StringType)))
+            ObjectOf("name" -> ValueOrNull(StringType), "age" -> OneOf(NumberType, StringType))
           }
       }
       "note missing elements" in {
@@ -111,17 +111,63 @@ class InferSpec extends FreeSpec with MustMatchers {
           """{ "name": "Paula", "age": 46}""",
           """{ "name": "Gustav", "age": 52, "house_color": "glitter"}"""
         ) must inferTo {
-            ObjectOf(Map("name" -> StringType, "age" -> NumberType, "house_color" -> OneOf(Missing, StringType)))
+            ObjectOf("name" -> StringType, "age" -> NumberType, "house_color" -> OneOf(Missing, StringType))
           }
       }
+    }
 
+    "detect constant values if enabled" - {
+      "field of object" in {
+        Seq(
+          """{"name": "Haensel", "age": 7}""",
+          """{"name": "Gretel", "age": 7}"""
+        ) must inferTo(
+            ObjectOf("name" -> StringType, "age" -> Constant(JsNumber(7), NumberType)), InferSettings.default
+          )
+      }
+    }
+
+    "discrimate object types" - {
+      "if ratio of shared field names is too low" in {
+        Seq(
+          """{"name": "Haensel", "age": 7}""",
+          """{"first_name": "Haensel", "last_name": "Meier"}"""
+        ) must inferTo(
+            OneOf(
+              ObjectOf("first_name" -> StringType, "last_name" -> StringType),
+              ObjectOf("name" -> StringType, "age" -> NumberType)
+            )
+          )
+      }
+      "not if ratio of shared field names is high enough" in {
+        Seq(
+          """{"first_name": "Haensel", "last_name": "Meier", "age": 7}""",
+          """{"first_name": "Gretel", "last_name": "Mayer"}"""
+        ) must inferTo(
+            ObjectOf("first_name" -> StringType, "last_name" -> StringType, "age" -> OneOf(NumberType, Missing))
+          )
+      }
+
+      "by discriminator field" in {
+        Seq(
+          """{"type": "cat", "name": "Gerlinda", "age": 7, "meow_noise":"meeeeeeeooooww"}""",
+          """{"type": "cat", "name": "GigA", "age": 4, "meow_noise":"aaaaaaarrrrrrr"}""",
+          """{"type": "dog", "name": "Nana", "age": 12, "hair_form":"curly", "favorite_tree":"oak"}""",
+          """{"type": "dog", "name": "Gonzo", "age": 4, "hair_form":"straight"}"""
+        ) must inferTo(
+            OneOf(
+              ObjectOf("type" -> Constant(JsString("cat"), StringType), "name" -> StringType, "age" -> NumberType, "meow_noise" -> StringType),
+              ObjectOf("type" -> Constant(JsString("dog"), StringType), "name" -> StringType, "favorite_tree" -> OneOf(StringType, Missing), "age" -> NumberType, "hair_form" -> StringType)
+            ),
+            InferSettings.default)
+      }
     }
   }
 
-  def inferTo(expected: JsType): Matcher[Seq[String]] =
+  def inferTo(expected: JsType, settings: InferSettings = InferSettings.noConstants): Matcher[Seq[String]] =
     Matcher { jsonStrings: Seq[String] =>
       val json = jsonStrings.map(_.parseJson)
-      val tpe = new Inferer().inferAndUnify(json).widen
+      val tpe = new Inferer(settings).inferAndUnify(json)
 
       MatchResult(
         tpe == expected,
@@ -130,10 +176,10 @@ class InferSpec extends FreeSpec with MustMatchers {
       )
     }
 
-  def haveType(expected: JsType): Matcher[String] =
+  def haveType(expected: JsType, settings: InferSettings = InferSettings.noConstants): Matcher[String] =
     Matcher { jsonString: String =>
       val json = jsonString.parseJson
-      val tpe = new Inferer().infer(json).widen
+      val tpe = new Inferer(settings).infer(json)
 
       MatchResult(
         tpe == expected,
