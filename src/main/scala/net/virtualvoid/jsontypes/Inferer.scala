@@ -5,19 +5,50 @@ import JsType._
 
 import scala.annotation.tailrec
 
-object Inferer {
+trait InferSettings {
+  def inferConstants: Boolean
+
+  def withInferConstants(infer: Boolean): InferSettings
+}
+
+object InferSettings {
+  val default: InferSettings =
+    InferSettingsImpl(
+      inferConstants = true
+    )
+
+  private case class InferSettingsImpl(
+      inferConstants: Boolean
+  ) extends InferSettings {
+    override def withInferConstants(infer: Boolean): InferSettings =
+      copy(inferConstants = infer)
+  }
+}
+
+class Inferer(settings: InferSettings = InferSettings.default) {
   def inferAndUnify(values: Seq[JsValue]): JsType =
     values.map(infer).reduceLeftOption(unify).getOrElse(Missing)
 
-  def infer(value: JsValue): JsType = value match {
-    case _: JsString    => StringType
-    case JsNull         => NullType
-    case _: JsNumber    => NumberType
-    case _: JsBoolean   => BooleanType
+  def infer(value: JsValue): JsType =
+    if (settings.inferConstants)
+      value match {
+        case JsNull     => NullType
+        case _: JsArray => inferNonConstant(value)
+        case v          => Constant(value, inferNonConstant(value))
+      }
+    else inferNonConstant(value)
 
-    case array: JsArray => ArrayOf(inferAndUnify(array.elements))
-    case obj: JsObject  => ObjectOf(obj.fields.mapValues(infer))
-  }
+  private def inferNonConstant(value: JsValue): JsType =
+    value match {
+      case _: JsString    => StringType
+      case JsNull         => NullType
+      case _: JsNumber    => NumberType
+      case _: JsBoolean   => BooleanType
+
+      case array: JsArray => ArrayOf(inferAndUnify(array.elements))
+      case obj: JsObject  => ObjectOf(obj.fields.mapValues(infer))
+    }
+
   def unify(one: JsType, two: JsType): JsType = {
     def addToOneOf(existing: Alternatives, newEntry: JsType): Alternatives = {
       @tailrec def tryOne(remaining: Seq[JsType], tried: Seq[JsType]): Alternatives =
@@ -42,6 +73,7 @@ object Inferer {
     // permutations (unification is commutative)
     implicit val typeOrdering = Ordering.by[JsType, Int] {
       case NullType         => 0
+      case _: Constant      => 3
       case _: ValueOrNull   => 5
       case _: OneOf         => 10
       case ArrayOf(Missing) => 19
@@ -51,6 +83,7 @@ object Inferer {
       case NumberType       => 50
       case BooleanType      => 60
       case Missing          => 70
+
     }
     import Ordering.Implicits._
 
@@ -62,9 +95,11 @@ object Inferer {
         else (two, one)
 
       (fst, snd) match {
-        case (NullType, NullType)                  => NullType
         case (NullType, other: ValueOrNull)        => other
         case (NullType, other)                     => ValueOrNull(other)
+
+        case (Constant(_, t1), Constant(_, t2))    => unify(t1, t2)
+        case (Constant(_, t1), t2)                 => unify(t1, t2)
 
         case (von @ ValueOrNull(v), v2) if v == v2 => von
 

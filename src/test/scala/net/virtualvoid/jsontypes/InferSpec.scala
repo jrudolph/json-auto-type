@@ -121,7 +121,7 @@ class InferSpec extends FreeSpec with MustMatchers {
   def inferTo(expected: JsType): Matcher[Seq[String]] =
     Matcher { jsonStrings: Seq[String] =>
       val json = jsonStrings.map(_.parseJson)
-      val tpe = Inferer.inferAndUnify(json)
+      val tpe = new Inferer().inferAndUnify(json).widen
 
       MatchResult(
         tpe == expected,
@@ -133,7 +133,7 @@ class InferSpec extends FreeSpec with MustMatchers {
   def haveType(expected: JsType): Matcher[String] =
     Matcher { jsonString: String =>
       val json = jsonString.parseJson
-      val tpe = Inferer.infer(json)
+      val tpe = new Inferer().infer(json).widen
 
       MatchResult(
         tpe == expected,

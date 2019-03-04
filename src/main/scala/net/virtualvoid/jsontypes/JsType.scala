@@ -5,12 +5,19 @@ import spray.json.JsObject
 import spray.json.JsString
 import spray.json.JsValue
 
-sealed trait JsType
+sealed trait JsType {
+  def widen: JsType = JsType.widen(this)
+}
 object JsType {
   type Alternatives = Set[JsType]
 
+  final case class Constant(value: JsValue, jsType: JsType) extends JsType
+
   final case class ArrayOf(structure: JsType) extends JsType
-  final case class OneOf(alternatives: Alternatives) extends JsType
+  final case class OneOf(alternatives: Alternatives) extends JsType {
+    require(alternatives.size > 1, "OneOf can only be created with more than one alternative")
+    require(alternatives.forall(!_.isInstanceOf[OneOf]), s"OneOf shouldn't be nested: ${alternatives.mkString(",")}")
+  }
   object OneOf {
     def apply(fst: JsType, others: JsType*): OneOf =
       OneOf(fst +: others toSet)
@@ -26,9 +33,24 @@ object JsType {
   case object NullType extends JsType
 
   // TODO: decide if that's really necessary or if it can be handled by OneOf(NullType, others) more uniformly
-  case class ValueOrNull(valueStructure: JsType) extends JsType
+  final case class ValueOrNull(valueStructure: JsType) extends JsType
 
   case object Missing extends JsType
+
+  /** Converts all constants to their abstract types */
+  def widen(tpe: JsType): JsType = tpe match {
+    case Constant(_, tpe)   => widen(tpe)
+    case p: PrimitiveType   => p
+    case NullType           => NullType
+    case Missing            => Missing
+    case ValueOrNull(v)     => ValueOrNull(widen(v))
+    case ArrayOf(structure) => ArrayOf(widen(structure))
+    case ObjectOf(fields)   => ObjectOf(fields.mapValues(widen))
+    case OneOf(alternatives) =>
+      val result = alternatives.map(widen)
+      if (result.size == 1) result.head
+      else OneOf(result)
+  }
 
   def toJson(s: JsType): JsValue = s match {
     case ArrayOf(els) => JsArray(toJson(els))
