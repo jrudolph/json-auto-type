@@ -1,4 +1,4 @@
-package example.akkawschat
+package net.virtualvoid.jsontypes.web
 
 import org.scalajs.dom
 

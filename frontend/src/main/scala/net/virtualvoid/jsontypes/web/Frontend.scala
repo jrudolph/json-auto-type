@@ -1,4 +1,4 @@
-package example.akkawschat
+package net.virtualvoid.jsontypes.web
 
 object Frontend {
   def main(args: Array[String]): Unit = {

@@ -1,4 +1,4 @@
-package example.akkawschat.web
+package net.virtualvoid.jsontypes.web
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
@@ -14,9 +14,10 @@ object Boot extends App {
   val config = system.settings.config
   val interface = config.getString("app.interface")
   val port = config.getInt("app.port")
+  val autoreload = config.getBoolean("app.autoreload")
 
   val shutdownSignal = Promise[Unit]()
-  val service = new Webservice(shutdownSignal.future)
+  val service = new Webservice(shutdownSignal.future, autoreload)
 
   val binding = Http().bindAndHandle(service.route, interface, port)
   binding.onComplete {

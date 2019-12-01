@@ -1,4 +1,4 @@
-package example.akkawschat.web
+package net.virtualvoid.jsontypes.web
 
 import akka.http.scaladsl.model.ws.{ Message, TextMessage }
 import akka.http.scaladsl.server.Route

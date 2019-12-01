@@ -55,9 +55,9 @@ lazy val web =
       }.taskValue,
       watchSources ++= (watchSources in frontend).value,
 
-      buildInfoPackage := "example.akkawschat",
+      buildInfoPackage := "net.virtualvoid.jsontypes",
       buildInfoKeys ++= Seq(
-        "longProjectName" -> "Example Project"
+        "longProjectName" -> "Json Binding Generator"
       ),
       paradoxMaterialTheme in Compile := {
         ParadoxMaterialTheme()
