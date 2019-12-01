@@ -176,7 +176,8 @@ class Inferer(settings: InferSettings = InferSettings.default) {
 
   private def shouldUnifyObjects(a: ObjectOf, b: ObjectOf): Boolean = {
     def hasSimilarFields: Boolean =
-      a.fields.keySet.intersect(b.fields.keySet).size.toDouble / (a.fields.size min b.fields.size) >= settings.minRatioOfCommonFieldNamesToUnifyObject
+      (a.fields.isEmpty || b.fields.isEmpty) || // empty objects are always similar to ones with elements
+        a.fields.keySet.intersect(b.fields.keySet).size.toDouble / (a.fields.size min b.fields.size) >= settings.minRatioOfCommonFieldNamesToUnifyObject
 
     def hasDifferentDiscriminatorFieldValue: Boolean =
       settings.discriminatorFieldNames.exists { fieldName =>
