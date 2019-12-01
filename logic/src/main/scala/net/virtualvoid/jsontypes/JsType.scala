@@ -70,6 +70,8 @@ object JsType {
         JsObject("oneOf" -> JsArray(els.map(toJson).toVector))
     case ValueOrNull(valueStructure) =>
       JsObject("optional" -> toJson(valueStructure))
+    case Constant(value, jsType) =>
+      JsObject("constant" -> JsObject("value" -> value, "type" -> toJson(jsType)))
     case x => JsString(x.toString)
   }
 }
