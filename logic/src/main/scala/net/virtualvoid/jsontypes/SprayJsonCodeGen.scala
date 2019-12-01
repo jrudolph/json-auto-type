@@ -45,7 +45,7 @@ private[jsontypes] object SprayJsonCodeGenImpl {
             }.unzip
         Metadata(
           name,
-          s"case class $name(\n${fieldDefs.mkString(",\n")})\nimplicit val ${name}Format = jsonFormat${fieldDefs.size}($name.apply _)",
+          s"final case class $name(\n${fieldDefs.map("  " + _).mkString(",\n")}\n)\nimplicit val ${name}Format = jsonFormat${fieldDefs.size}($name.apply _)",
           innerDefs = metas)
 
       case OneOf(alternatives) =>
