@@ -39,7 +39,7 @@ class Webservice(shutdownSignal: Future[Unit], autoreload: Boolean) extends Dire
               val inferer = new Inferer()
               val tpe = inferer.inferAndUnify(json :: Nil)
               val res = SprayJsonCodeGen.bindingFor(tpe)
-              complete(html.page(html.result(json.prettyPrint, res)))
+              complete(html.page(html.result(json.prettyPrint, JsType.toJson(tpe).prettyPrint, res)))
             }
           },
         )
