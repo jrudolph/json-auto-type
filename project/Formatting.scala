@@ -1,5 +1,4 @@
 import sbt._
-
 import com.typesafe.sbt.SbtScalariform
 import com.typesafe.sbt.SbtScalariform.ScalariformKeys
 
@@ -18,7 +17,8 @@ object Formatting extends AutoPlugin {
 
   def formattingPreferences: FormattingPreferences =
     FormattingPreferences()
-      .setPreference(RewriteArrowSymbols, false)
+      .setPreference(RewriteArrowSymbols, true)
+      .setPreference(UseUnicodeArrows, false)
       .setPreference(AlignParameters, true)
       .setPreference(AlignSingleLineCaseStatements, true)
       .setPreference(DanglingCloseParenthesis, Preserve)

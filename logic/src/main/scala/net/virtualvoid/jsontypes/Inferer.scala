@@ -78,7 +78,7 @@ class Inferer(settings: InferSettings = InferSettings.default) {
       case _: JsBoolean   => BooleanType
 
       case array: JsArray => ArrayOf(inferAndUnify(array.elements))
-      case obj: JsObject  => ObjectOf(obj.fields.mapValues(infer))
+      case obj: JsObject  => ObjectOf(obj.fields.view.mapValues(infer).toMap)
     }
 
   def unify(one: JsType, two: JsType): JsType = {

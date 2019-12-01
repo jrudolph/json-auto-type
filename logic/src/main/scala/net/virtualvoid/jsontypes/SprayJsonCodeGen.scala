@@ -1,5 +1,7 @@
 package net.virtualvoid.jsontypes
 
+import scala.language.postfixOps
+
 import JsType._
 
 object SprayJsonCodeGen {

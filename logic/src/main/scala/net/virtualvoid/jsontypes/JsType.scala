@@ -1,5 +1,7 @@
 package net.virtualvoid.jsontypes
 
+import scala.language.postfixOps
+
 import spray.json.JsArray
 import spray.json.JsObject
 import spray.json.JsString
@@ -49,7 +51,7 @@ object JsType {
     case Missing            => Missing
     case ValueOrNull(v)     => ValueOrNull(widen(v))
     case ArrayOf(structure) => ArrayOf(widen(structure))
-    case ObjectOf(fields)   => ObjectOf(fields.mapValues(widen))
+    case ObjectOf(fields)   => ObjectOf(fields.view.mapValues(widen).toMap)
     case OneOf(alternatives) =>
       val result = alternatives.map(widen)
       if (result.size == 1) result.head
@@ -59,7 +61,7 @@ object JsType {
   def toJson(s: JsType): JsValue = s match {
     case ArrayOf(els) => JsArray(toJson(els))
     case ObjectOf(fields) =>
-      val entries = fields.mapValues(toJson)
+      val entries = fields.view.mapValues(toJson).toMap
       JsObject(entries)
     case OneOf(els) =>
       if (els.size == 2 && els.contains(Missing))
