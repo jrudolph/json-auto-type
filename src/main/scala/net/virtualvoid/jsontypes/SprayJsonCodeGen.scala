@@ -52,7 +52,7 @@ private[jsontypes] object SprayJsonCodeGenImpl {
           val meta = toCaseClasses(s, namePrefix + "OptionElement")
           Metadata(s"Option[${meta.typeName}]", innerDefs = meta :: Nil)
         } else
-          throw new IllegalArgumentException("Only optional alternatives supported, right now")
+          throw new IllegalArgumentException(s"Only optional alternatives supported, right now but got [${alternatives.mkString(", ")}]")
 
       case ValueOrNull(valueStructure) =>
         val meta = toCaseClasses(valueStructure, namePrefix + "OptionElement")
