@@ -1,0 +1,17 @@
+@(json: String, sprayJsonResult: String)
+
+
+<div class="row">
+    <div class="col s12">
+        <ul class="tabs">
+            <li class="tab col s3"><a class="active" href="#spray-json">Spray JSON</a></li>
+            <li class="tab col s3"><a href="#json">Source</a></li>
+        </ul>
+    </div>
+    <div id="spray-json" class="col s12">
+        <pre><code class="scala">@sprayJsonResult</code></pre>
+    </div>
+    <div id="json" class="col s12">
+        <pre><code class="json">@json</code></pre>
+    </div>
+</div>

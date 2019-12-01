@@ -1,10 +1,12 @@
-package net.virtualvoid.jsontypes.web
+package net.virtualvoid.jsontypes
+package web
 
 import java.util.Random
 
 import akka.http.scaladsl.marshalling.{ Marshaller, ToEntityMarshaller }
 import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.server.{ Directives, Route }
+import spray.json._
 import play.twirl.api.Html
 
 import scala.concurrent.Future
@@ -20,7 +22,7 @@ class Webservice(shutdownSignal: Future[Unit], autoreload: Boolean) extends Dire
       get {
         concat(
           pathSingleSlash {
-            complete(html.page(Html("Homepage")))
+            complete(html.page(html.form()))
           },
           // Scala-JS puts them in the root of the resource directory per default,
           // so that's where we pick them up
@@ -29,5 +31,19 @@ class Webservice(shutdownSignal: Future[Unit], autoreload: Boolean) extends Dire
           if (autoreload) path("ws-watchdog") { AutoReloaderRoute(shutdownSignal) } else reject,
         )
       },
-      getFromResourceDirectory("web"))
+      post {
+        concat(
+          path("analyze") {
+            formField("json") { jsonStr =>
+              val json = jsonStr.parseJson
+              val inferer = new Inferer()
+              val tpe = inferer.inferAndUnify(json :: Nil)
+              val res = SprayJsonCodeGen.bindingFor(tpe)
+              complete(html.page(html.result(json.prettyPrint, res)))
+            }
+          },
+        )
+      },
+      getFromResourceDirectory("web"),
+    )
 }
