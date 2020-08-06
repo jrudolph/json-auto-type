@@ -3,13 +3,16 @@ package web
 
 import java.util.Random
 
+import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshalling.{ Marshaller, ToEntityMarshaller }
-import akka.http.scaladsl.model.MediaTypes
+import akka.http.scaladsl.model.{ HttpRequest, MediaTypes }
 import akka.http.scaladsl.server.{ Directives, Route }
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import spray.json._
 import play.twirl.api.Html
 
 import scala.concurrent.Future
+import scala.util.Try
 
 class Webservice(shutdownSignal: Future[Unit], autoreload: Boolean) extends Directives {
   implicit val twirlHtmlMarshaller: ToEntityMarshaller[Html] =
@@ -34,16 +37,31 @@ class Webservice(shutdownSignal: Future[Unit], autoreload: Boolean) extends Dire
       post {
         concat(
           path("analyze") {
-            formField("json") { jsonStr =>
-              val json = jsonStr.parseJson
-              val inferer = new Inferer()
-              val tpe = inferer.inferAndUnify(json :: Nil)
-              val res = SprayJsonCodeGen.bindingFor(tpe)
-              complete(html.page(html.result(json.prettyPrint, JsType.toJson(tpe).prettyPrint, res)))
-            }
+            formField("json")(jsonStr => analyze(jsonStr.parseJson))
           },
+          path("analyzeURI") {
+            formField("uri") { uri =>
+              extractActorSystem { implicit system =>
+                extractExecutionContext { implicit ec =>
+                  import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+                  val responseF =
+                    Http().singleRequest(HttpRequest(uri = uri))
+                      .flatMap(res => Unmarshal(res).to[JsValue])
+                  onSuccess(responseF)(analyze)
+                }
+              }
+            }
+          }
         )
       },
       getFromResourceDirectory("web"),
     )
+
+  def analyze(json: JsValue): Route = {
+    val inferer = new Inferer()
+    val tpe = Try(inferer.inferAndUnify(json :: Nil))
+    val binding = tpe.map(SprayJsonCodeGen.bindingFor).getOrElse("<error>")
+    val structure = tpe.map(JsType.toJson(_).prettyPrint).getOrElse("<error>")
+    complete(html.page(html.result(json.prettyPrint, structure, binding)))
+  }
 }
