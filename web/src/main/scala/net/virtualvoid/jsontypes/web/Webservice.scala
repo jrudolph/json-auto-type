@@ -22,38 +22,26 @@ class Webservice(shutdownSignal: Future[Unit], autoreload: Boolean) extends Dire
 
   lazy val route: Route =
     concat(
-      get {
-        concat(
-          pathSingleSlash {
-            complete(html.page(html.form()))
-          },
-          // Scala-JS puts them in the root of the resource directory per default,
-          // so that's where we pick them up
-          path("frontend-fastopt.js")(getFromResource("frontend-fastopt.js")),
-          path("frontend-fastopt.js.map")(getFromResource("frontend-fastopt.js.map")),
-          if (autoreload) path("ws-watchdog") { AutoReloaderRoute(shutdownSignal) } else reject,
-        )
-      },
-      post {
-        concat(
-          path("analyze") {
-            formField("json")(jsonStr => analyze(jsonStr.parseJson))
-          },
-          path("analyzeURI") {
-            formField("uri") { uri =>
-              extractActorSystem { implicit system =>
-                extractExecutionContext { implicit ec =>
-                  import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-                  val responseF =
-                    Http().singleRequest(HttpRequest(uri = uri))
-                      .flatMap(res => Unmarshal(res).to[JsValue])
-                  onSuccess(responseF)(analyze)
-                }
-              }
+      (pathSingleSlash & get) { complete(html.page(html.form())) },
+      (path("analyze") & post) { formField("json")(jsonStr => analyze(jsonStr.parseJson)) },
+      (path("analyzeURI") & get) {
+        parameter("uri") { uri =>
+          extractActorSystem { implicit system =>
+            extractExecutionContext { implicit ec =>
+              import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+              val responseF =
+                Http().singleRequest(HttpRequest(uri = uri))
+                  .flatMap(res => Unmarshal(res).to[JsValue])
+              onSuccess(responseF)(analyze)
             }
           }
-        )
+        }
       },
+      // Scala-JS puts them in the root of the resource directory per default,
+      // so that's where we pick them up
+      path("frontend-fastopt.js")(getFromResource("frontend-fastopt.js")),
+      path("frontend-fastopt.js.map")(getFromResource("frontend-fastopt.js.map")),
+      if (autoreload) path("ws-watchdog") { AutoReloaderRoute(shutdownSignal) } else reject,
       getFromResourceDirectory("web"),
     )
 
