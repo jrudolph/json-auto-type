@@ -79,5 +79,6 @@ lazy val web =
 
 def commonSettings = Seq(
   scalaVersion := scalaV,
-  scalacOptions ++= Seq("-deprecation", "-feature", "-encoding", "utf8", "-Ywarn-dead-code", "-unchecked", "-Xlint")
+  scalacOptions ++= Seq("-deprecation", "-feature", "-encoding", "utf8", "-Ywarn-dead-code", "-unchecked", "-Xlint"),
+  resolvers += "staging" at "https://oss.sonatype.org/content/repositories/staging/"
 )
