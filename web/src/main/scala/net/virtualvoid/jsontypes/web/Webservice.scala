@@ -30,7 +30,7 @@ class Webservice(shutdownSignal: Future[Unit], autoreload: Boolean) extends Dire
             extractExecutionContext { implicit ec =>
               import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
               val responseF =
-                Http().singleRequest(HttpRequest(uri = uri))
+                Http().singleRequest(HttpRequest(uri = uri.trim))
                   .flatMap(res => Unmarshal(res).to[JsValue])
               onSuccess(responseF)(analyze)
             }
