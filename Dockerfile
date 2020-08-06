@@ -1,5 +1,5 @@
 ARG BASE_IMAGE_TAG
-FROM hseeberger/scala-sbt:${BASE_IMAGE_TAG:-8u222_1.3.3_2.13.1} AS builder
+FROM hseeberger/scala-sbt:${BASE_IMAGE_TAG:-8u265_1.3.13_2.13.3} AS builder
 
 RUN mkdir -p /tmp/project
 WORKDIR /tmp/project
@@ -20,7 +20,7 @@ COPY . /tmp/project/
 
 RUN sbt "show web/assembly"
 
-FROM adoptopenjdk/openjdk8:jdk8u222-b10-debian-slim
+FROM adoptopenjdk/openjdk11:debian
 
 COPY --from=builder /tmp/project/web/target/scala-2.13/*-assembly-*.jar /app.jar
 

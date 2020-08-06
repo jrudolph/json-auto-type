@@ -1,10 +1,10 @@
-val scalaV = "2.13.1"
-val akkaV = "2.6.0"
-val akkaHttpV = "10.1.10"
+val scalaV = "2.13.3"
+val akkaV = "2.6.8"
+val akkaHttpV = "10.2.0"
 val sprayJsonV = "1.3.5"
-val upickleV = "0.8.0"
-val utestV = "0.7.1"
-val scalaJsDomV = "0.9.7"
+val upickleV = "1.2.0"
+val utestV = "0.7.4"
+val scalaJsDomV = "1.0.0"
 val scalaTestV = "3.0.8"
 
 lazy val root =
