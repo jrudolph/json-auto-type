@@ -8,6 +8,15 @@ object SprayJsonCodeGen {
   def bindingFor(tpe: JsType): String =
     SprayJsonCodeGenImpl.printMetadata(SprayJsonCodeGenImpl.toCaseClasses(tpe, "Root"))
 }
+
+/*
+FIXMEs:
+ * Hygiene: names should be only used once
+ * Quoting: invalid identifiers should either be converted or quoted
+ * Better name inference: use singular when instead of XsArrayElement
+
+ */
+
 private[jsontypes] object SprayJsonCodeGenImpl {
   case class Metadata(typeName: String, definition: String = "", innerDefs: Seq[Metadata] = Nil)
   val ReservedKeywords = Set("type")
