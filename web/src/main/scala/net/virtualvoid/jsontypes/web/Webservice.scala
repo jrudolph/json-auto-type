@@ -48,8 +48,11 @@ class Webservice(shutdownSignal: Future[Unit], autoreload: Boolean) extends Dire
   def analyze(json: JsValue): Route = {
     val inferer = new Inferer()
     val tpe = Try(inferer.inferAndUnify(json :: Nil))
-    val binding = tpe.map(SprayJsonCodeGen.bindingFor).getOrElse("<error>")
-    val structure = tpe.map(JsType.toJson(_).prettyPrint).getOrElse("<error>")
+    val showError: PartialFunction[Throwable, String] = {
+      case ex => s"<error: ${ex.getMessage}>"
+    }
+    val binding = tpe.map(SprayJsonCodeGen.bindingFor).recover(showError).get
+    val structure = tpe.map(JsType.toJson(_).prettyPrint).recover(showError).get
     complete(html.page(html.result(json.prettyPrint, structure, binding)))
   }
 }
