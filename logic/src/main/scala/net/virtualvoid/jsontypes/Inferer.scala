@@ -141,8 +141,6 @@ class Inferer(settings: InferSettings = InferSettings.default) {
         case (ArrayOf(s1), ArrayOf(s2))            => ArrayOf(unify(s1, s2))
 
         case (a @ ObjectOf(fields1), b @ ObjectOf(fields2)) =>
-          val allFields = fields1.keySet ++ fields2.keySet
-
           // Here, I made a particular choice in the algorithm: every field is unified independently of every other.
           // If there's an array of objects that is homogeneous, i.e. every element is representing a similar data item (e.g. a user)
           // but every element might have slight differences (some fields might be optional or heterogeneous), then this
@@ -156,6 +154,7 @@ class Inferer(settings: InferSettings = InferSettings.default) {
           // as an indication or trigger to prevent unification of all the fields.
 
           if (shouldUnifyObjects(a, b)) {
+            val allFields = fields1.keySet ++ fields2.keySet
             val newStruct =
               allFields.map { f =>
                 f -> unify(fields1.getOrElse(f, Missing), fields2.getOrElse(f, Missing))
