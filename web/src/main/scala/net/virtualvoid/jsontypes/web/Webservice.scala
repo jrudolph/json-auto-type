@@ -6,7 +6,8 @@ import java.util.Random
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshalling.{ Marshaller, ToEntityMarshaller }
 import akka.http.scaladsl.model.{ HttpRequest, MediaTypes }
-import akka.http.scaladsl.server.{ Directives, Route }
+import akka.http.scaladsl.server.directives.Credentials
+import akka.http.scaladsl.server.{ Directive0, Directives, Route }
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import spray.json._
 import play.twirl.api.Html
@@ -14,7 +15,7 @@ import play.twirl.api.Html
 import scala.concurrent.Future
 import scala.util.Try
 
-class Webservice(shutdownSignal: Future[Unit], autoreload: Boolean) extends Directives {
+class Webservice(shutdownSignal: Future[Unit], config: ServiceConfig) extends Directives {
   implicit val twirlHtmlMarshaller: ToEntityMarshaller[Html] =
     Marshaller.StringMarshaller.wrap(MediaTypes.`text/html`)(_.toString)
 
@@ -24,7 +25,7 @@ class Webservice(shutdownSignal: Future[Unit], autoreload: Boolean) extends Dire
     concat(
       (pathSingleSlash & get) { complete(html.page(html.form())) },
       (path("analyze") & post) { formField("json")(jsonStr => analyze(jsonStr.parseJson)) },
-      (path("analyzeURI") & get) {
+      (path("analyzeURI") & get & authenticated) {
         parameter("uri") { uri =>
           extractActorSystem { implicit system =>
             extractExecutionContext { implicit ec =>
@@ -41,9 +42,17 @@ class Webservice(shutdownSignal: Future[Unit], autoreload: Boolean) extends Dire
       // so that's where we pick them up
       path("frontend-fastopt.js")(getFromResource("frontend-fastopt.js")),
       path("frontend-fastopt.js.map")(getFromResource("frontend-fastopt.js.map")),
-      if (autoreload) path("ws-watchdog") { AutoReloaderRoute(shutdownSignal) } else reject,
+      if (config.autoreload) path("ws-watchdog") { AutoReloaderRoute(shutdownSignal) } else reject,
       getFromResourceDirectory("web"),
     )
+
+  def authenticated: Directive0 =
+    authenticateBasic("JSON Auto Typer", {
+      case Credentials.Missing => None
+      case p: Credentials.Provided =>
+        if (p.identifier == config.username && config.password.nonEmpty && p.verify(config.password)) Some(())
+        else None
+    }).tmap(_ => ())
 
   def analyze(json: JsValue): Route = {
     val inferer = new Inferer()

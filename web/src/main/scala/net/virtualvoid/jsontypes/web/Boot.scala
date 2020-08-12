@@ -17,7 +17,13 @@ object Boot extends App {
   val autoreload = config.getBoolean("app.autoreload")
 
   val shutdownSignal = Promise[Unit]()
-  val service = new Webservice(shutdownSignal.future, autoreload)
+  val serviceConfig = ServiceConfig(
+    autoreload,
+    config.getString("app.username"),
+    config.getString("app.password")
+  )
+
+  val service = new Webservice(shutdownSignal.future, serviceConfig)
 
   val binding = Http().newServerAt(interface, port).bind(service.route)
   binding.onComplete {
