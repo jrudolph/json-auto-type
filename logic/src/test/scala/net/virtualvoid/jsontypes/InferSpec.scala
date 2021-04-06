@@ -127,7 +127,7 @@ class InferSpec extends FreeSpec with MustMatchers {
       }
     }
 
-    "discrimate object types" - {
+    "discriminate object types" - {
       "if ratio of shared field names is too low" in {
         Seq(
           """{"name": "Haensel", "age": 7}""",
